@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #151f28;
+    text-align: center;
+    margin: 10px 0;
+}
+
+header {
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+    background: #1c2833;
+    margin-bottom: 60px;
+}
+
+.navigation a {
+    font-size: 1.25em;
+    color: white;
+    text-decoration: none;
+    position: relative;
+    font-weight: 600;
+    margin: 0 20px;
+    padding: 10px 20px;
+    transition: color 0.3s ease;
+}
+
+.navigation a:hover {
+    color: #57f1ec;
+    font-size: 1.3em;
+    border: solid 2px #1c2833;
+    transition: border 1s ease, border 1s ease;
+
+}
+
+.navigation a::after{
+    content: "";
+    position: absolute;
+    border-radius: 5px;
+    left: 0;
+    bottom: -1px;
+    background: rgb(98, 229, 252);
+    width: 90%;
+    height: 3px;
+    transform-origin: right;
+    transform: scale(0);
+    transition: transform 0.75s ease, transform 0.75s ease;
+
+}
+
+.navigation a:hover::after{
+    transform-origin: left;
+    transform: scaleX(1);
+
+}
+
+h1 {
+    color: #ffffff;
+    font-size: 1.75em;
+    font-weight: 700;
+    margin-bottom: 40px;
+}
+.container {
+    padding: 20px;
+}
+
+.message-box {
+    margin-top: 20px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+.container {
+    padding: 20px;
+    background: #093559;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    width: 80%; /* ใช้ความกว้างแบบ Responsive */
+    max-width: 600px; /* ขีดจำกัดความกว้าง */
+    margin-top: 40px;
+}
+
+.image-link {
+    width: 100%; /* ปรับขนาดให้พอดีกับ container */
+    height: auto; /* ให้สูงอัตโนมัติตามสัดส่วน */
+    max-height: 300px; /* กำหนดความสูงสูงสุดเพื่อให้ไม่สูงเกินไป */
+    border-radius: 8px; /* มุมมนของรูป */
+    object-fit: cover; /* ให้ภาพเต็มกรอบโดยรักษาสัดส่วน */
+    transition: transform 0.2s ease; /* เพิ่มการเปลี่ยนแปลงเมื่อโฮเวอร์ */
+}
+
+.image-link:hover {
+    transform: scale(1.05); /* ซูมภาพเมื่อโฮเวอร์ */
+}
+
