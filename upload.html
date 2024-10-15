@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>อัปโหลดภาพ</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>อัปโหลดภาพเพื่อตรวจจับตัวอักษร</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="image" accept="image/*" required>
+        <button type="submit">อัปโหลด</button>
+    </form>
+
+    <div id="result" style="margin-top: 20px;"></div>
+
+    <script>
+        $(document).ready(function() {
+            $('#upload-form').on('submit', function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+
+                $.ajax({
+                    url: '/predict',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(data) {
+                        $('#result').html('<h2>ผลการทำนาย: ' + data.predicted_letter + '</h2>' +
+                                          '<p>ความเชื่อมั่น: ' + data.confidence.toFixed(2) + '%</p>');
+                    },
+                    error: function(jqXHR) {
+                        $('#result').html('<h2>เกิดข้อผิดพลาด: ' + jqXHR.responseJSON.error + '</h2>');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
