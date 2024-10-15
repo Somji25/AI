@@ -110,3 +110,44 @@ button:hover {
 button:focus {
     outline: none;
 }
+
+.code-container {
+    max-height: 400px; 
+    overflow-y: auto; 
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: #f4f4f4;
+    width: 80%;
+}
+pre {
+    margin: 0; 
+}
+.code-link {
+    margin-top: 20px;
+    display: block;
+    font-size: 1.25em;
+    color: white;
+    text-decoration: none;
+    position: relative;
+    font-weight: 600;
+    margin: 0 20px;
+    padding: 10px 20px;
+    transition: color 0.3s ease;
+    margin-top: 30px;
+}
+
+.code-link :hover {
+    color: #57f1ec;
+    font-size: 1.3em;
+    border: solid 2px #1c2833;
+    transition: border 1s ease, border 1s ease;
+   
+}
+
+h2{
+    color: #fff;
+    font-size: 1.3em;
+    font-weight: 600;
+    margin: 40px;
+}
