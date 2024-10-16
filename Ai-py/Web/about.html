@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/style.css">
+    <title>Code Showcase</title>
+</head>
+<body>
+    <header>
+        <nav class="navigation">
+            <a href="Home.html">Home</a>
+            <a href="Detec_cam.html">WebCam</a>
+            <a href="New.html">News</a>
+            <a href="about.html">About</a>
+        </nav>
+    </header>
+
+    <h1>Code Showcase</h1>
+    
+    <h2>Example Code</h2>
+    <div class="code-container">
+        <pre><code>
+import cv2
+import mediapipe as mp
+import os
+
+# สร้างตัวแปร mediapipe สำหรับการตรวจจับมือ
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+
+# เปิดกล้องหรือวิดีโอ
+cap = cv2.VideoCapture(0)
+
+# สร้างโฟลเดอร์เพื่อเก็บรูปภาพ
+output_folder = 'C:/Users/nawaphon/Documents/65050454/Hard Project/Detect_Hand/Thai/20'
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
+# กำหนดจำนวนภาพสูงสุดที่ต้องการบันทึก
+max_images = 1200
+
+with mp_hands.Hands(max_num_hands=2, min_detection_confidence=0.5, min_tracking_confidence=0.5) as hands:
+    frame_count = 0
+    while cap.isOpened() and frame_count < max_images:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # เปลี่ยนเป็นสี RGB
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+
+        # ตรวจจับมือในภาพ
+        results = hands.process(image)
+
+        # เปลี่ยนกลับเป็น BGR เพื่อแสดงผล
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        # วาดจุด landmarks ถ้าตรวจพบ
+        if results.multi_hand_landmarks:
+            all_x_min, all_y_min, all_x_max, all_y_max = [], [], [], []
+            for hand_landmarks in results.multi_hand_landmarks:
+                # วาด landmarks บนมือ
+                mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+                # คำนวณตำแหน่งของกรอบมือ
+                h, w, _ = image.shape
+                x_min = int(min([landmark.x * w for landmark in hand_landmarks.landmark]))
+                y_min = int(min([landmark.y * h for landmark in hand_landmarks.landmark]))
+                x_max = int(max([landmark.x * w for landmark in hand_landmarks.landmark]))
+                y_max = int(max([landmark.y * h for landmark in hand_landmarks.landmark]))
+
+                all_x_min.append(x_min)
+                all_y_min.append(y_min)
+                all_x_max.append(x_max)
+                all_y_max.append(y_max)
+                
+                x_min = max(0, min(all_x_min) - 20)
+                y_min = max(0, min(all_y_min) - 20)
+                x_max = min(w, max(all_x_max) + 20)
+                y_max = min(h, max(all_y_max) + 20)
+
+                # ตัดภาพ ROI (Region of Interest) สำหรับมือ
+                hand_roi = image[y_min:y_max, x_min:x_max]
+
+                # แสดงภาพ ROI ที่ตัดจากมือ
+                if hand_roi.size > 0:
+                    cv2.imshow('Hand ROI', hand_roi)
+
+                    # บันทึกภาพ ROI เป็นไฟล์ .png ในโฟลเดอร์
+                    image_filename = os.path.join(output_folder, f'frame_{frame_count}.jpg')
+                    cv2.imwrite(image_filename, hand_roi)
+                    print(f"Saved: {image_filename}")
+                    frame_count += 1
+
+                    # ถ้าบันทึกภาพครบ 1200 ภาพแล้วให้หยุด
+                    if frame_count >= max_images:
+                        print("Reached maximum image limit.")
+                        break
+
+        # แสดงภาพที่ตรวจจับ
+        cv2.imshow('Hand Detection', image)
+
+        if cv2.waitKey(5) & 0xFF == 27:  # กด ESC เพื่อหยุด
+            break
+
+cap.release()
+cv2.destroyAllWindows()
+
+print(f"Images saved to {output_folder}")
+        </code></pre>
+    </div>
+
+    <a class="code-link" href="https://github.com/Somji25/AI">Links to More Examples</a>
+
+</body>
+</html>
