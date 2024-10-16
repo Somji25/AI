@@ -1,6 +1,6 @@
 Instructions:
 
- 1. The model file (AI_python.h5) must be loaded from the master branch.
+ 1. The model file (AI_python.h5) must be loaded from https://drive.google.com/file/d/15qEX09mZlmeXnMmu3SUxkU0X7rU1Bmsy/view?usp=sharing.
  2. Navigate to the Web folder, open the Cam.py file, and run the Python code.
  3. Load all HTML files from the Web folder.
 
