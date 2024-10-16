@@ -11,7 +11,7 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
 
-model = load_model("C:/Users/nawaphon/Documents/65050454/Hard Project/Detect_Hand/AI_python.h5")
+model = load_model("/AI_python.h5")
 
 
 classes = ['พ่อ', 'ดีใจ', 'มีความสุข', 'ชอบ', 'ไม่สบาย', 'เข้าใจแล้ว', 'เศร้า', 'ยิ้ม', 'โชคดี', 'หิว', 'ชอบ',
@@ -20,7 +20,7 @@ classes = ['พ่อ', 'ดีใจ', 'มีความสุข', 'ชอ�
            'รัก', 'เข้าใจแล้ว', 'เข้าใจแล้ว', 'ขอความช่วยเหลือ', 'ห', 'ฬ', 'อ', 'ฮ']
 
 # โหลดฟอนต์ภาษาไทย
-fontpath = "C:/Users/nawaphon/Documents/65050454/Hard Project/myproject/Bethai.ttf"
+fontpath = "/Bethai.ttf"
 font = ImageFont.truetype(fontpath, 30)
 
 async def process_video(websocket, path):
