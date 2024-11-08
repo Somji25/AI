@@ -8,9 +8,9 @@ Note: The Python script (Cam.py) must always be executed first to enable the cam
 
 
 seting liabary 
-pip install opencv-python
-pip install mediapipe
-pip install websockets
-pip install asyncio
-pip install numpy
-pip install PIL
+pip install opencv-python.
+pip install mediapipe.
+pip install websockets.
+pip install asyncio.
+pip install numpy.
+pip install PIL.
