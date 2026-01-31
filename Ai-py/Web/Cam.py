@@ -4,38 +4,25 @@ import numpy as np
 import asyncio
 import websockets
 from tensorflow.keras.models import load_model
-from tensorflow.keras.models import model_from_json
 from PIL import ImageFont, ImageDraw, Image
-import gdown
-import io
-import h5py
-import os
 
-# ====== Load model from Google Drive (ไม่ต้องเซฟไฟล์) ======
-file_id = "15qEX09mZlmeXnMmu3SUxkU0X7rU1Bmsy"
-url = f"https://drive.google.com/uc?id={file_id}"
+# ====== Load model ======
+model = load_model("AI_python.h5")
 
-# ดาวน์โหลดไฟล์มาเป็น bytes
-response_path = "AI_python.h5"
-if not os.path.exists(response_path):
-    gdown.download(url, response_path, quiet=False)
-
-# โหลดโมเดลจากไฟล์ที่ดาวน์โหลดมา
-model = load_model(response_path)
-
-# ====== Classes และ Font ======
 classes = ['พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
            'โชคดี','หิว','ชอบ','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ',
            'ขอโทษ','เป็นห่วง','เป็นห่วง','รัก','เขา','สวัสดี','แม่','สวัสดี',
            'เสียใจ','เสียใจ','ขอบคุณ','ยิ้ม','อิ่ม','แม่','รัก','รัก',
            'เข้าใจแล้ว','เข้าใจแล้ว','ขอความช่วยเหลือ','ห','ฬ','อ','ฮ']
 
-font = ImageFont.truetype("Bethai.ttf", 30)
+font = ImageFont.truetype(
+    "Bethai.ttf", 30
+)
 
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
-# ====== WebSocket handler ======
+# ====== WebSocket handler (แก้ตรงนี้) ======
 async def process_video(websocket):
     cap = cv2.VideoCapture(0)
 
