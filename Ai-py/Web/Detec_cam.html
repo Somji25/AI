@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Hand Detection</title>
@@ -9,10 +9,9 @@ canvas { border:2px solid black; }
 </head>
 <body>
 
-<h1>Hand Detection</h1>
+<h2>Hand Detection</h2>
 <video id="video" autoplay playsinline style="display:none"></video>
-<canvas id="canvas" width="640" height="480"></canvas><br>
-
+<canvas id="canvas" width="480" height="360"></canvas><br>
 <button onclick="start()">Show CAM</button>
 <button onclick="stop()">Close CAM</button>
 
@@ -23,40 +22,42 @@ const ctx = canvas.getContext("2d");
 
 let socket, stream, running=false;
 
-async function start() {
-    stream = await navigator.mediaDevices.getUserMedia({ video:true });
-    video.srcObject = stream;
+async function start(){
+  stream = await navigator.mediaDevices.getUserMedia({video:true});
+  video.srcObject = stream;
 
-    socket = new WebSocket("wss://YOUR-RENDER-URL.onrender.com");
-    socket.binaryType = "arraybuffer";
+  socket = new WebSocket("wss://YOUR-RENDER-URL.onrender.com");
+  socket.binaryType = "arraybuffer";
 
-    socket.onmessage = e => {
-        const img = new Image();
-        img.src = URL.createObjectURL(new Blob([e.data]));
-        img.onload = () => ctx.drawImage(img,0,0,640,480);
-    };
+  socket.onmessage = e => {
+    const img = new Image();
+    img.src = URL.createObjectURL(new Blob([e.data]));
+    img.onload = ()=>ctx.drawImage(img,0,0,480,360);
+  };
 
-    socket.onopen = () => {
-        running = true;
-        sendFrame();
-    };
+  socket.onopen = ()=>{
+    running=true;
+    sendFrame();
+  };
 }
 
-function sendFrame() {
-    if(!running) return;
-    ctx.drawImage(video,0,0,640,480);
-    canvas.toBlob(b=>{
-        if(socket.readyState===1) socket.send(b);
-    },"image/jpeg",0.8);
-    requestAnimationFrame(sendFrame);
+function sendFrame(){
+  if(!running) return;
+  ctx.drawImage(video,0,0,480,360);
+  canvas.toBlob(b=>{
+    if(socket.readyState===1) socket.send(b);
+  },"image/jpeg",0.7);
+
+  setTimeout(sendFrame, 100); // ~10 FPS
 }
 
-function stop() {
-    running=false;
-    if(socket) socket.close();
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-    ctx.clearRect(0,0,640,480);
+function stop(){
+  running=false;
+  if(socket) socket.close();
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  ctx.clearRect(0,0,480,360);
 }
 </script>
+
 </body>
 </html>
