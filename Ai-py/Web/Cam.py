@@ -1,4 +1,9 @@
-import cv2, asyncio, websockets, numpy as np, os, requests
+# ================= SYSTEM =================
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
+import cv2, asyncio, websockets, numpy as np, requests
 from tensorflow.keras.models import load_model
 from PIL import Image, ImageDraw, ImageFont
 import mediapipe as mp
@@ -9,9 +14,10 @@ MODEL_PATH = "AI_python.h5"
 
 if not os.path.exists(MODEL_PATH):
     r = requests.get(MODEL_URL)
-    open(MODEL_PATH,"wb").write(r.content)
+    with open(MODEL_PATH, "wb") as f:
+        f.write(r.content)
 
-model = load_model(MODEL_PATH)
+model = load_model(MODEL_PATH, compile=False)
 
 classes = [
  'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
@@ -19,59 +25,73 @@ classes = [
  'รัก','สวัสดี','เสียใจ','ขอบคุณ','อิ่ม','ห','ฬ','อ','ฮ'
 ]
 
-font = ImageFont.truetype("Bethai.ttf", 30)
+font = ImageFont.truetype("Bethai.ttf", 28)
 
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
-# ================= WS =================
+# ================= WEBSOCKET =================
 async def process_video(ws):
-    with mp_hands.Hands(0.7,0.7) as hands:
-        async for msg in ws:
-            img = cv2.imdecode(np.frombuffer(msg,np.uint8),1)
-            if img is None: continue
+    with mp_hands.Hands(
+        max_num_hands=2,
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.7
+    ) as hands:
 
-            img = cv2.resize(img,(640,480))
-            rgb = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+        async for msg in ws:
+            img = cv2.imdecode(np.frombuffer(msg, np.uint8), 1)
+            if img is None:
+                continue
+
+            # ลดขนาดภาพ ประหยัด RAM
+            img = cv2.resize(img, (480, 360))
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             res = hands.process(rgb)
 
             if res.multi_hand_landmarks:
-                xs,ys=[],[]
-                h,w,_=img.shape
-                for hand in res.multi_hand_landmarks:
-                    mp_draw.draw_landmarks(img,hand,mp_hands.HAND_CONNECTIONS)
-                    for lm in hand.landmark:
-                        xs.append(int(lm.x*w))
-                        ys.append(int(lm.y*h))
+                xs, ys = [], []
+                h, w, _ = img.shape
 
-                x1,x2 = max(min(xs)-20,0), min(max(xs)+20,w)
-                y1,y2 = max(min(ys)-20,0), min(max(ys)+20,h)
-                roi = img[y1:y2,x1:x2]
+                for hand in res.multi_hand_landmarks:
+                    mp_draw.draw_landmarks(img, hand, mp_hands.HAND_CONNECTIONS)
+                    for lm in hand.landmark:
+                        xs.append(int(lm.x * w))
+                        ys.append(int(lm.y * h))
+
+                x1, x2 = max(min(xs)-20,0), min(max(xs)+20,w)
+                y1, y2 = max(min(ys)-20,0), min(max(ys)+20,h)
+                roi = img[y1:y2, x1:x2]
 
                 if roi.size:
-                    roi=cv2.resize(roi,(148,148))/255.0
-                    roi=np.expand_dims(roi,0)
-                    p=model.predict(roi,0)
-                    i=np.argmax(p)
+                    roi = cv2.resize(roi,(148,148)) / 255.0
+                    roi = np.expand_dims(roi,0)
+                    p = model.predict(roi, verbose=0)
+                    i = np.argmax(p)
 
-                    pil=Image.fromarray(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
-                    d=ImageDraw.Draw(pil)
-                    d.rectangle([x1,y1-40,x1+320,y1],fill=(0,0,120))
-                    d.text((x1+5,y1-35),
-                           f"{classes[i]} {p[0][i]*100:.1f}%",
-                           font=font,fill=(255,255,255))
-                    img=cv2.cvtColor(np.array(pil),cv2.COLOR_RGB2BGR)
+                    pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+                    d = ImageDraw.Draw(pil)
+                    d.rectangle([x1,y1-35,x1+300,y1], fill=(0,0,120))
+                    d.text(
+                        (x1+5, y1-30),
+                        f"{classes[i]} {p[0][i]*100:.1f}%",
+                        font=font,
+                        fill=(255,255,255)
+                    )
+                    img = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
-            _,buf=cv2.imencode(".jpg",img)
+            _, buf = cv2.imencode(".jpg", img)
             await ws.send(buf.tobytes())
 
+# ================= START SERVER =================
 async def main():
+    PORT = int(os.environ.get("PORT", 10000))
     async with websockets.serve(
         process_video,
         "0.0.0.0",
-        int(os.environ.get("PORT",8765)),
-        max_size=2**23
+        PORT,
+        max_size=2**22
     ):
+        print("Server running on port", PORT)
         await asyncio.Future()
 
 asyncio.run(main())
