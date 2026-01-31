@@ -1,113 +1,77 @@
-import cv2
-import mediapipe as mp
-import numpy as np
-import asyncio
-import websockets
-import os
-import requests
-
+import cv2, asyncio, websockets, numpy as np, os, requests
 from tensorflow.keras.models import load_model
-from PIL import ImageFont, ImageDraw, Image
+from PIL import Image, ImageDraw, ImageFont
+import mediapipe as mp
 
-# =========================
-# Download + Load Model
-# =========================
+# ================= MODEL =================
 MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/AI_python.h5"
 MODEL_PATH = "AI_python.h5"
 
 if not os.path.exists(MODEL_PATH):
-    print("Downloading model from GitHub Release...")
-    r = requests.get(MODEL_URL, stream=True)
-    r.raise_for_status()
-    with open(MODEL_PATH, "wb") as f:
-        for chunk in r.iter_content(chunk_size=8192):
-            f.write(chunk)
+    r = requests.get(MODEL_URL)
+    open(MODEL_PATH,"wb").write(r.content)
 
-print("Loading model...")
 model = load_model(MODEL_PATH)
-print("Model loaded")
 
-# =========================
-# Classes
-# =========================
 classes = [
-    'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
-    'โชคดี','หิว','ชอบ','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ',
-    'ขอโทษ','เป็นห่วง','เป็นห่วง','รัก','เขา','สวัสดี','แม่','สวัสดี',
-    'เสียใจ','เสียใจ','ขอบคุณ','ยิ้ม','อิ่ม','แม่','รัก','รัก',
-    'เข้าใจแล้ว','เข้าใจแล้ว','ขอความช่วยเหลือ','ห','ฬ','อ','ฮ'
+ 'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
+ 'โชคดี','หิว','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ','เป็นห่วง',
+ 'รัก','สวัสดี','เสียใจ','ขอบคุณ','อิ่ม','ห','ฬ','อ','ฮ'
 ]
 
-# =========================
-# Font
-# =========================
 font = ImageFont.truetype("Bethai.ttf", 30)
 
-# =========================
-# MediaPipe
-# =========================
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
-# =========================
-# WebSocket handler
-# =========================
-async def process_video(websocket):
-    cap = cv2.VideoCapture(0)
+# ================= WS =================
+async def process_video(ws):
+    with mp_hands.Hands(0.7,0.7) as hands:
+        async for msg in ws:
+            img = cv2.imdecode(np.frombuffer(msg,np.uint8),1)
+            if img is None: continue
 
-    with mp_hands.Hands(
-        max_num_hands=2,
-        min_detection_confidence=0.7,
-        min_tracking_confidence=0.7
-    ) as hands:
+            img = cv2.resize(img,(640,480))
+            rgb = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+            res = hands.process(rgb)
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            frame = cv2.resize(frame, (640, 480))
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            result = hands.process(rgb)
-
-            if result.multi_hand_landmarks:
-                xs, ys = [], []
-                for hand in result.multi_hand_landmarks:
-                    mp_draw.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
-                    h, w, _ = frame.shape
+            if res.multi_hand_landmarks:
+                xs,ys=[],[]
+                h,w,_=img.shape
+                for hand in res.multi_hand_landmarks:
+                    mp_draw.draw_landmarks(img,hand,mp_hands.HAND_CONNECTIONS)
                     for lm in hand.landmark:
-                        xs.append(int(lm.x * w))
-                        ys.append(int(lm.y * h))
+                        xs.append(int(lm.x*w))
+                        ys.append(int(lm.y*h))
 
-                x1, x2 = max(min(xs)-20, 0), min(max(xs)+20, w)
-                y1, y2 = max(min(ys)-20, 0), min(max(ys)+20, h)
+                x1,x2 = max(min(xs)-20,0), min(max(xs)+20,w)
+                y1,y2 = max(min(ys)-20,0), min(max(ys)+20,h)
+                roi = img[y1:y2,x1:x2]
 
-                roi = frame[y1:y2, x1:x2]
-                if roi.size > 0:
-                    roi = cv2.resize(roi, (148, 148)) / 255.0
-                    roi = np.expand_dims(roi, axis=0)
+                if roi.size:
+                    roi=cv2.resize(roi,(148,148))/255.0
+                    roi=np.expand_dims(roi,0)
+                    p=model.predict(roi,0)
+                    i=np.argmax(p)
 
-                    pred = model.predict(roi, verbose=0)
-                    idx = np.argmax(pred)
-                    text = f"Predict: {classes[idx]} {pred[0][idx]*100:.1f}%"
+                    pil=Image.fromarray(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
+                    d=ImageDraw.Draw(pil)
+                    d.rectangle([x1,y1-40,x1+320,y1],fill=(0,0,120))
+                    d.text((x1+5,y1-35),
+                           f"{classes[i]} {p[0][i]*100:.1f}%",
+                           font=font,fill=(255,255,255))
+                    img=cv2.cvtColor(np.array(pil),cv2.COLOR_RGB2BGR)
 
-                    img_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    draw = ImageDraw.Draw(img_pil)
-                    draw.rectangle([x1, y1-40, x1+320, y1], fill=(0, 0, 102))
-                    draw.text((x1+5, y1-35), text, font=font, fill=(255, 255, 255))
-                    frame = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+            _,buf=cv2.imencode(".jpg",img)
+            await ws.send(buf.tobytes())
 
-            _, buffer = cv2.imencode(".jpg", frame)
-            await websocket.send(buffer.tobytes())
-
-    cap.release()
-
-# =========================
-# Start Server
-# =========================
 async def main():
-    async with websockets.serve(process_video, "localhost", 8765):
-        print("WebSocket server running at ws://localhost:8765")
+    async with websockets.serve(
+        process_video,
+        "0.0.0.0",
+        int(os.environ.get("PORT",8765)),
+        max_size=2**23
+    ):
         await asyncio.Future()
 
 asyncio.run(main())
