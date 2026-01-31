@@ -1,70 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Detection Display</title>
-    <link rel="stylesheet" href="static/style.css">
-    <style>
-        #canvas {
-            width: 640px;
-            height: 480px;
-            border: 2px solid black;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Hand Detection</title>
+<style>
+canvas { border:2px solid black; }
+</style>
 </head>
 <body>
-    <header>
-        <nav class="navigation">
-            <a href="Home.html">Home</a>
-            <a href="Detec_cam.html">WebCam</a>
-            <a href="New.html">News</a>
-            <a href="about.html">About</a>
-        </nav>
-    </header>
-    <h1>Hand Detection</h1>
-    <canvas id="canvas"></canvas>
-    <button id="startButton">Show CAM</button>
-    <button id="stopButton" style="display: none;">Close CAM</button>
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        let socket;
+<h1>Hand Detection</h1>
+<video id="video" autoplay playsinline style="display:none"></video>
+<canvas id="canvas" width="640" height="480"></canvas><br>
 
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
+<button onclick="start()">Show CAM</button>
+<button onclick="stop()">Close CAM</button>
 
-        function startWebSocket() {
-            socket = new WebSocket('ws://localhost:8765');
-            socket.onmessage = function(event) {
-                const image = new Image();
-                image.src = URL.createObjectURL(new Blob([event.data]));
-                image.onload = function() {
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                };
-            };
-        }
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-        function stopWebSocket() {
-            if (socket) {
-                socket.close();
-                socket = null;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas when closing the WebSocket
-            }
-        }
+let socket, stream, running=false;
 
-        startButton.addEventListener('click', function() {
-            startWebSocket();
-            startButton.style.display = 'none';
-            stopButton.style.display = 'inline';
-        });
+async function start() {
+    stream = await navigator.mediaDevices.getUserMedia({ video:true });
+    video.srcObject = stream;
 
-        stopButton.addEventListener('click', function() {
-            stopWebSocket();
-            startButton.style.display = 'inline';
-            stopButton.style.display = 'none';
-        });
-    </script>
+    socket = new WebSocket("wss://YOUR-RENDER-URL.onrender.com");
+    socket.binaryType = "arraybuffer";
+
+    socket.onmessage = e => {
+        const img = new Image();
+        img.src = URL.createObjectURL(new Blob([e.data]));
+        img.onload = () => ctx.drawImage(img,0,0,640,480);
+    };
+
+    socket.onopen = () => {
+        running = true;
+        sendFrame();
+    };
+}
+
+function sendFrame() {
+    if(!running) return;
+    ctx.drawImage(video,0,0,640,480);
+    canvas.toBlob(b=>{
+        if(socket.readyState===1) socket.send(b);
+    },"image/jpeg",0.8);
+    requestAnimationFrame(sendFrame);
+}
+
+function stop() {
+    running=false;
+    if(socket) socket.close();
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    ctx.clearRect(0,0,640,480);
+}
+</script>
 </body>
 </html>
