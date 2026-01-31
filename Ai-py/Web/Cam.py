@@ -3,8 +3,12 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-import cv2, asyncio, websockets, numpy as np, requests
-from tensorflow.keras.models import load_model
+import cv2
+import asyncio
+import websockets
+import numpy as np
+import requests
+import tensorflow as tf
 from PIL import Image, ImageDraw, ImageFont
 import mediapipe as mp
 
@@ -17,12 +21,13 @@ if not os.path.exists(MODEL_PATH):
     with open(MODEL_PATH, "wb") as f:
         f.write(r.content)
 
-model = load_model(MODEL_PATH, compile=False)
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+print("Model loaded")
 
 classes = [
- 'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
- 'โชคดี','หิว','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ','เป็นห่วง',
- 'รัก','สวัสดี','เสียใจ','ขอบคุณ','อิ่ม','ห','ฬ','อ','ฮ'
+    'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
+    'โชคดี','หิว','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ','เป็นห่วง',
+    'รัก','สวัสดี','เสียใจ','ขอบคุณ','อิ่ม','ห','ฬ','อ','ฮ'
 ]
 
 font = ImageFont.truetype("Bethai.ttf", 28)
@@ -38,12 +43,11 @@ async def process_video(ws):
         min_tracking_confidence=0.7
     ) as hands:
 
-        async for msg in ws:
-            img = cv2.imdecode(np.frombuffer(msg, np.uint8), 1)
+        async for message in ws:
+            img = cv2.imdecode(np.frombuffer(message, np.uint8), cv2.IMREAD_COLOR)
             if img is None:
                 continue
 
-            # ลดขนาดภาพ ประหยัด RAM
             img = cv2.resize(img, (480, 360))
             rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             res = hands.process(rgb)
@@ -58,40 +62,36 @@ async def process_video(ws):
                         xs.append(int(lm.x * w))
                         ys.append(int(lm.y * h))
 
-                x1, x2 = max(min(xs)-20,0), min(max(xs)+20,w)
-                y1, y2 = max(min(ys)-20,0), min(max(ys)+20,h)
-                roi = img[y1:y2, x1:x2]
+                x1, x2 = max(min(xs)-20, 0), min(max(xs)+20, w)
+                y1, y2 = max(min(ys)-20, 0), min(max(ys)+20, h)
 
-                if roi.size:
-                    roi = cv2.resize(roi,(148,148)) / 255.0
-                    roi = np.expand_dims(roi,0)
-                    p = model.predict(roi, verbose=0)
-                    i = np.argmax(p)
+                roi = img[y1:y2, x1:x2]
+                if roi.size > 0:
+                    roi = cv2.resize(roi, (148, 148)) / 255.0
+                    roi = np.expand_dims(roi, axis=0)
+
+                    pred = model.predict(roi, verbose=0)
+                    idx = np.argmax(pred)
 
                     pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    d = ImageDraw.Draw(pil)
-                    d.rectangle([x1,y1-35,x1+300,y1], fill=(0,0,120))
-                    d.text(
+                    draw = ImageDraw.Draw(pil)
+                    draw.rectangle([x1, y1-35, x1+300, y1], fill=(0, 0, 120))
+                    draw.text(
                         (x1+5, y1-30),
-                        f"{classes[i]} {p[0][i]*100:.1f}%",
+                        f"{classes[idx]} {pred[0][idx]*100:.1f}%",
                         font=font,
                         fill=(255,255,255)
                     )
                     img = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
-            _, buf = cv2.imencode(".jpg", img)
-            await ws.send(buf.tobytes())
+            _, buffer = cv2.imencode(".jpg", img)
+            await ws.send(buffer.tobytes())
 
-# ================= START SERVER =================
+# ================= MAIN =================
 async def main():
     PORT = int(os.environ.get("PORT", 10000))
-    async with websockets.serve(
-        process_video,
-        "0.0.0.0",
-        PORT,
-        max_size=2**22
-    ):
-        print("Server running on port", PORT)
+    async with websockets.serve(process_video, "0.0.0.0", PORT):
+        print("WebSocket running on port", PORT)
         await asyncio.Future()
 
 asyncio.run(main())
