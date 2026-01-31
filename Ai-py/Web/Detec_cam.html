@@ -1,63 +1,84 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Hand Detection</title>
-<style>
-canvas { border:2px solid black; }
-</style>
-</head>
-<body>
+# ================= SYSTEM =================
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-<h2>Hand Detection</h2>
-<video id="video" autoplay playsinline style="display:none"></video>
-<canvas id="canvas" width="480" height="360"></canvas><br>
-<button onclick="start()">Show CAM</button>
-<button onclick="stop()">Close CAM</button>
+import cv2, asyncio, websockets, numpy as np, requests
+from tensorflow.keras.models import load_model
+from PIL import Image, ImageDraw, ImageFont
+import mediapipe as mp
 
-<script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+# ================= MODEL =================
+MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/AI_python.h5"
+MODEL_PATH = "AI_python.h5"
 
-let socket, stream, running=false;
+if not os.path.exists(MODEL_PATH):
+    r = requests.get(MODEL_URL)
+    open(MODEL_PATH, "wb").write(r.content)
 
-async function start(){
-  stream = await navigator.mediaDevices.getUserMedia({video:true});
-  video.srcObject = stream;
+model = load_model(MODEL_PATH, compile=False)
 
-  socket = new WebSocket("wss://YOUR-RENDER-URL.onrender.com");
-  socket.binaryType = "arraybuffer";
+classes = [
+ 'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
+ 'โชคดี','หิว','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ','เป็นห่วง',
+ 'รัก','สวัสดี','เสียใจ','ขอบคุณ','อิ่ม','ห','ฬ','อ','ฮ'
+]
 
-  socket.onmessage = e => {
-    const img = new Image();
-    img.src = URL.createObjectURL(new Blob([e.data]));
-    img.onload = ()=>ctx.drawImage(img,0,0,480,360);
-  };
+font = ImageFont.truetype("Bethai.ttf", 28)
 
-  socket.onopen = ()=>{
-    running=true;
-    sendFrame();
-  };
-}
+mp_hands = mp.solutions.hands
+mp_draw = mp.solutions.drawing_utils
 
-function sendFrame(){
-  if(!running) return;
-  ctx.drawImage(video,0,0,480,360);
-  canvas.toBlob(b=>{
-    if(socket.readyState===1) socket.send(b);
-  },"image/jpeg",0.7);
+# ================= WS =================
+async def process_video(ws):
+    with mp_hands.Hands(2, 0.7, 0.7) as hands:
+        async for msg in ws:
+            img = cv2.imdecode(np.frombuffer(msg, np.uint8), 1)
+            if img is None:
+                continue
 
-  setTimeout(sendFrame, 100); // ~10 FPS
-}
+            img = cv2.resize(img, (480, 360))
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            res = hands.process(rgb)
 
-function stop(){
-  running=false;
-  if(socket) socket.close();
-  if(stream) stream.getTracks().forEach(t=>t.stop());
-  ctx.clearRect(0,0,480,360);
-}
-</script>
+            if res.multi_hand_landmarks:
+                xs, ys = [], []
+                h, w, _ = img.shape
 
-</body>
-</html>
+                for hand in res.multi_hand_landmarks:
+                    mp_draw.draw_landmarks(img, hand, mp_hands.HAND_CONNECTIONS)
+                    for lm in hand.landmark:
+                        xs.append(int(lm.x * w))
+                        ys.append(int(lm.y * h))
+
+                x1, x2 = max(min(xs)-20,0), min(max(xs)+20,w)
+                y1, y2 = max(min(ys)-20,0), min(max(ys)+20,h)
+                roi = img[y1:y2, x1:x2]
+
+                if roi.size:
+                    roi = cv2.resize(roi,(148,148))/255.0
+                    roi = np.expand_dims(roi,0)
+                    p = model.predict(roi, verbose=0)
+                    i = np.argmax(p)
+
+                    pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+                    d = ImageDraw.Draw(pil)
+                    d.rectangle([x1,y1-35,x1+300,y1], fill=(0,0,120))
+                    d.text(
+                        (x1+5, y1-30),
+                        f"{classes[i]} {p[0][i]*100:.1f}%",
+                        font=font,
+                        fill=(255,255,255)
+                    )
+                    img = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+
+            _, buf = cv2.imencode(".jpg", img)
+            await ws.send(buf.tobytes())
+
+async def main():
+    PORT = int(os.environ.get("PORT", 10000))
+    async with websockets.serve(process_video, "0.0.0.0", PORT):
+        print("Running on port", PORT)
+        await asyncio.Future()
+
+asyncio.run(main())
