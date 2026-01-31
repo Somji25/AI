@@ -4,3 +4,4 @@ mediapipe
 websockets
 numpy
 pillow
+gdown
