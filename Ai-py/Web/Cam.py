@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 import mediapipe as mp
 
 # ================= MODEL =================
-MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/AI_python.h5"
+MODEL_URL = "hhttps://github.com/Somji25/AI/releases/download/v1.0/model_tf_new.keras"
 MODEL_PATH = "AI_python.h5"
 
 if not os.path.exists(MODEL_PATH):
@@ -95,3 +95,4 @@ async def main():
         await asyncio.Future()
 
 asyncio.run(main())
+
