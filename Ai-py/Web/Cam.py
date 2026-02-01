@@ -13,10 +13,10 @@ from PIL import Image, ImageDraw, ImageFont
 import mediapipe as mp
 
 # ================= MODEL =================
-MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/model_tf_new.h5"
-MODEL_PATH = "model_tf_new.h5"
+MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/model_tf_fixed.h5"
+MODEL_PATH = "model_tf_fixed.h5"
 
-# ลบไฟล์เก่ากัน cache
+# กัน cache / ไฟล์พัง
 if os.path.exists(MODEL_PATH):
     os.remove(MODEL_PATH)
 
@@ -33,7 +33,7 @@ size_mb = os.path.getsize(MODEL_PATH) / 1024 / 1024
 print(f"Model file size: {size_mb:.2f} MB")
 
 if size_mb < 5:
-    raise RuntimeError("Model download failed (file too small)")
+    raise RuntimeError("Downloaded model is invalid")
 
 print("Loading model...")
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
