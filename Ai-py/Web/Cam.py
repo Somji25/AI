@@ -14,24 +14,30 @@ import mediapipe as mp
 
 # ================= MODEL =================
 MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/model_tf_new.keras"
-MODEL_PATH = "AI_python.h5"
+MODEL_PATH = "model_tf_new.keras"
 
 if not os.path.exists(MODEL_PATH):
+    print("Downloading model...")
     r = requests.get(MODEL_URL)
+    r.raise_for_status()
     with open(MODEL_PATH, "wb") as f:
         f.write(r.content)
 
+print("Loading model...")
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 print("Model loaded")
 
+# ================= CLASSES =================
 classes = [
     'พ่อ','ดีใจ','มีความสุข','ชอบ','ไม่สบาย','เข้าใจแล้ว','เศร้า','ยิ้ม',
     'โชคดี','หิว','แม่','ขอความช่วยเหลือ','ฉัน','เขา','ขอโทษ','เป็นห่วง',
     'รัก','สวัสดี','เสียใจ','ขอบคุณ','อิ่ม','ห','ฬ','อ','ฮ'
 ]
 
+# ================= FONT =================
 font = ImageFont.truetype("Bethai.ttf", 28)
 
+# ================= MEDIAPIPE =================
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
@@ -62,25 +68,26 @@ async def process_video(ws):
                         xs.append(int(lm.x * w))
                         ys.append(int(lm.y * h))
 
-                x1, x2 = max(min(xs)-20, 0), min(max(xs)+20, w)
-                y1, y2 = max(min(ys)-20, 0), min(max(ys)+20, h)
+                x1, x2 = max(min(xs) - 20, 0), min(max(xs) + 20, w)
+                y1, y2 = max(min(ys) - 20, 0), min(max(ys) + 20, h)
 
                 roi = img[y1:y2, x1:x2]
                 if roi.size > 0:
-                    roi = cv2.resize(roi, (148, 148)) / 255.0
+                    roi = cv2.resize(roi, (148, 148))
+                    roi = roi.astype("float32") / 255.0
                     roi = np.expand_dims(roi, axis=0)
 
                     pred = model.predict(roi, verbose=0)
-                    idx = np.argmax(pred)
+                    idx = int(np.argmax(pred))
 
                     pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
                     draw = ImageDraw.Draw(pil)
-                    draw.rectangle([x1, y1-35, x1+300, y1], fill=(0, 0, 120))
+                    draw.rectangle([x1, y1 - 35, x1 + 300, y1], fill=(0, 0, 120))
                     draw.text(
-                        (x1+5, y1-30),
+                        (x1 + 5, y1 - 30),
                         f"{classes[idx]} {pred[0][idx]*100:.1f}%",
                         font=font,
-                        fill=(255,255,255)
+                        fill=(255, 255, 255)
                     )
                     img = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
@@ -91,9 +98,7 @@ async def process_video(ws):
 async def main():
     PORT = int(os.environ.get("PORT", 10000))
     async with websockets.serve(process_video, "0.0.0.0", PORT):
-        print("WebSocket running on port", PORT)
+        print(f"WebSocket running on port {PORT}")
         await asyncio.Future()
 
 asyncio.run(main())
-
-
