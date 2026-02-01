@@ -16,12 +16,24 @@ import mediapipe as mp
 MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/model_tf_new.keras"
 MODEL_PATH = "model_tf_new.keras"
 
-if not os.path.exists(MODEL_PATH):
-    print("Downloading model...")
-    r = requests.get(MODEL_URL)
-    r.raise_for_status()
-    with open(MODEL_PATH, "wb") as f:
-        f.write(r.content)
+# ลบไฟล์เก่าทิ้งทุกครั้ง (กัน cache / ไฟล์พัง)
+if os.path.exists(MODEL_PATH):
+    os.remove(MODEL_PATH)
+
+print("Downloading model...")
+r = requests.get(MODEL_URL, stream=True)
+r.raise_for_status()
+
+with open(MODEL_PATH, "wb") as f:
+    for chunk in r.iter_content(chunk_size=8192):
+        if chunk:
+            f.write(chunk)
+
+size_mb = os.path.getsize(MODEL_PATH) / 1024 / 1024
+print(f"Model file size: {size_mb:.2f} MB")
+
+if size_mb < 5:
+    raise RuntimeError("Downloaded file is NOT a valid Keras model")
 
 print("Loading model...")
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
