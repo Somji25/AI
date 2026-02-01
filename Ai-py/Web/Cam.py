@@ -13,10 +13,10 @@ from PIL import Image, ImageDraw, ImageFont
 import mediapipe as mp
 
 # ================= MODEL =================
-MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/model_tf_new.keras"
-MODEL_PATH = "model_tf_new.keras"
+MODEL_URL = "https://github.com/Somji25/AI/releases/download/v1.0/model_tf_new.h5"
+MODEL_PATH = "model_tf_new.h5"
 
-# ลบไฟล์เก่าทิ้งทุกครั้ง (กัน cache / ไฟล์พัง)
+# ลบไฟล์เก่ากัน cache
 if os.path.exists(MODEL_PATH):
     os.remove(MODEL_PATH)
 
@@ -25,7 +25,7 @@ r = requests.get(MODEL_URL, stream=True)
 r.raise_for_status()
 
 with open(MODEL_PATH, "wb") as f:
-    for chunk in r.iter_content(chunk_size=8192):
+    for chunk in r.iter_content(8192):
         if chunk:
             f.write(chunk)
 
@@ -33,7 +33,7 @@ size_mb = os.path.getsize(MODEL_PATH) / 1024 / 1024
 print(f"Model file size: {size_mb:.2f} MB")
 
 if size_mb < 5:
-    raise RuntimeError("Downloaded file is NOT a valid Keras model")
+    raise RuntimeError("Model download failed (file too small)")
 
 print("Loading model...")
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
@@ -80,8 +80,8 @@ async def process_video(ws):
                         xs.append(int(lm.x * w))
                         ys.append(int(lm.y * h))
 
-                x1, x2 = max(min(xs) - 20, 0), min(max(xs) + 20, w)
-                y1, y2 = max(min(ys) - 20, 0), min(max(ys) + 20, h)
+                x1, x2 = max(min(xs)-20, 0), min(max(xs)+20, w)
+                y1, y2 = max(min(ys)-20, 0), min(max(ys)+20, h)
 
                 roi = img[y1:y2, x1:x2]
                 if roi.size > 0:
@@ -94,12 +94,12 @@ async def process_video(ws):
 
                     pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
                     draw = ImageDraw.Draw(pil)
-                    draw.rectangle([x1, y1 - 35, x1 + 300, y1], fill=(0, 0, 120))
+                    draw.rectangle([x1, y1-35, x1+300, y1], fill=(0, 0, 120))
                     draw.text(
-                        (x1 + 5, y1 - 30),
+                        (x1+5, y1-30),
                         f"{classes[idx]} {pred[0][idx]*100:.1f}%",
                         font=font,
-                        fill=(255, 255, 255)
+                        fill=(255,255,255)
                     )
                     img = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
