@@ -1,8 +1,9 @@
 tensorflow==2.15.0
 keras==2.15.0
-numpy<2
+h5py==3.10.0
 opencv-python-headless
 mediapipe
+numpy
 pillow
 websockets
 requests
